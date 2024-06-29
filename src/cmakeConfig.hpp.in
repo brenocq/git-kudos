@@ -1,0 +1,12 @@
+//--------------------------------------------------
+// git-kudos
+// cmakeConfig.hpp
+// Date: 2024-06-29
+// By Breno Cunha Queiroz
+//--------------------------------------------------
+#ifndef KUDOS_CMAKE_CONFIG_HPP
+#define KUDOS_CMAKE_CONFIG_HPP
+
+#define KUDOS_VERSION "@CMAKE_PROJECT_VERSION@"
+
+#endif // KUDOS_CMAKE_CONFIG_HPP
