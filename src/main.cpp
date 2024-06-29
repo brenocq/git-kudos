@@ -8,9 +8,11 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -26,10 +28,35 @@ const std::string MAGENTA = "\033[35m";
 const std::string CYAN = "\033[36m";
 const std::string WHITE = "\033[37m";
 const std::string BOLD = "\033[1m";
+const std::string ITALIC = "\033[3m";
+const std::string UNDERLINE = "\033[4m";
 
 fs::path _repo;
 std::vector<std::string> _authors;                            // Sorted author emails
 std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
+
+struct Kudos {
+    fs::path path;
+    size_t totalLines = 0;
+    std::map<std::string, size_t> authorLines;
+
+    std::vector<std::pair<std::string, size_t>> calcSortedAuthors() const {
+        // Sort authors by descending number of lines
+        std::vector<std::pair<std::string, size_t>> sortedAuthors(authorLines.begin(), authorLines.end());
+        std::sort(sortedAuthors.begin(), sortedAuthors.end(), [](const auto& a, const auto& b) { return b.second < a.second; });
+        // Remove authors without lines
+        for (int i = sortedAuthors.size() - 1; i >= 0; i--)
+            if (sortedAuthors[i].second == 0)
+                sortedAuthors.erase(sortedAuthors.begin() + i);
+        return sortedAuthors;
+    }
+
+    void operator+=(const Kudos& kudos) {
+        totalLines += kudos.totalLines;
+        for (const auto& [author, lines] : kudos.authorLines)
+            authorLines[author] += lines;
+    }
+};
 
 void printHelp() {
     std::cout << "Usage: git-kudos [-h | --help] [-v | --version] [<repo>]\n";
@@ -103,16 +130,71 @@ void processAuthors() {
 
 void printListAuthors() {
     for (const auto author : _authors)
-        std::cout << std::string() + BOLD + WHITE + _authorNames[author][0] + RESET + WHITE + " <" + BLUE + author + WHITE + ">" << std::endl;
+        std::cout << std::string() + RESET + BOLD + BLUE + _authorNames[author][0] + RESET + WHITE + ITALIC + " <" + author + ">" << std::endl;
+}
+
+void printKudos(const Kudos& kudos) {
+    if (kudos.path.empty())
+        return;
+
+    // Print path
+    std::cout << BOLD + YELLOW + UNDERLINE + fs::absolute(kudos.path).string();
+    std::cout << RESET + WHITE + " (" << kudos.totalLines << " lines)" + RESET;
+    std::cout << std::endl;
+
+    // Calculate sorted authors
+    auto sortedAuthors = kudos.calcSortedAuthors();
+
+    // Print author kudos
+    for (const auto& [author, lines] : sortedAuthors) {
+        std::cout << BOLD + BLUE + _authorNames[author][0];     // Print name
+        std::cout << RESET + WHITE + ": " << lines << " lines"; // Print lines
+        std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"
+                  << std::endl; // Print percentage
+    }
+}
+
+Kudos calcKudos(fs::path path) {
+    Kudos kudos{};
+    kudos.path = path;
+
+    if (!fs::exists(path))
+        return kudos;
+    if (fs::is_directory(path)) {
+        // Ignore .git folder
+        if (path.string().find(".git") != std::string::npos)
+            return kudos;
+
+        for (const auto& entry : fs::directory_iterator(path))
+            kudos += calcKudos(entry.path());
+    } else {
+        // Use git blame to get line-by-line author information
+        std::string command = "git blame --line-porcelain " + path.string();
+        std::string output = runCommand(command);
+
+        std::istringstream stream(output);
+        std::string line;
+        std::string email;
+        while (std::getline(stream, line)) {
+            if (line.find("author-mail <") == 0) {
+                std::regex emailRegex("<(.*?)>");
+                std::smatch match;
+                if (std::regex_search(line, match, emailRegex)) {
+                    email = match[1].str();
+                    std::transform(email.begin(), email.end(), email.begin(), [](unsigned char c) { return std::tolower(c); });
+                    kudos.authorLines[email]++;
+                    kudos.totalLines++;
+                }
+            }
+        }
+    }
+
+    return kudos;
 }
 
 int main(int argc, char* argv[]) {
+    std::vector<fs::path> paths;
     bool listAuthors = false;
-
-    // Get current git repository
-    std::string currRepo = runCommand("git rev-parse --show-toplevel");
-    if (!currRepo.empty())
-        _repo = currRepo;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -124,33 +206,31 @@ int main(int argc, char* argv[]) {
             return 0;
         } else if (arg == "--list-authors") {
             listAuthors = true;
-        } else if (i == argc - 1) {
-            // Check if last provided command is a git repo
-            fs::path repo = arg;
-            if (fs::exists(repo) && fs::is_directory(repo) && fs::exists(repo / ".git")) {
-                _repo = repo;
-                // Change to specified git repo
-                fs::current_path(_repo);
-            } else {
-                std::cerr << "Provided path " << repo << " is not a git repo" << std::endl;
-                return 0;
-            }
         } else {
-            std::cerr << "Unknown option " << arg << std::endl;
+            if (fs::exists(arg)) {
+                paths.push_back(arg);
+            } else
+                std::cerr << "Unknown option " << arg << std::endl;
         }
     }
 
-    // Check if set to valid repo
-    if (_repo.empty()) {
-        std::cerr << "No git repo was detected or specified. You should run from inside a git repo or specify a repo" << std::endl;
-        return 0;
-    }
+    // Add current path if no path specified
+    if (paths.empty())
+        paths.push_back(".");
 
     // Process repo authors (merge contributions from same author with different names)
+    // TODO handle when paths are from different repos
     processAuthors();
 
     if (listAuthors)
         printListAuthors();
+    else {
+        for (const auto& path : paths) {
+            // TODO check path is good
+            Kudos kudos = calcKudos(path);
+            printKudos(kudos);
+        }
+    }
 
     return 0;
 }
