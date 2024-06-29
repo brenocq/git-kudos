@@ -5,16 +5,31 @@
 // By Breno Cunha Queiroz
 //--------------------------------------------------
 #include "cmakeConfig.hpp"
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
 
-fs::path _repo = {};
+// ANSI color codes
+const std::string RESET = "\033[0m";
+const std::string RED = "\033[31m";
+const std::string GREEN = "\033[32m";
+const std::string YELLOW = "\033[33m";
+const std::string BLUE = "\033[34m";
+const std::string MAGENTA = "\033[35m";
+const std::string CYAN = "\033[36m";
+const std::string WHITE = "\033[37m";
+const std::string BOLD = "\033[1m";
+
+fs::path _repo;
+std::vector<std::string> _authors;                            // Sorted author emails
+std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
 
 void printHelp() {
     std::cout << "Usage: git-kudos [-h | --help] [-v | --version] [<repo>]\n";
@@ -46,9 +61,49 @@ std::string runCommand(const std::string& command) {
     return result;
 }
 
-void printListAuthors() {
+void processAuthors() {
+    // List repo authors
     std::string gitAuthors = runCommand("git log --format='%aN <%aE>' | sort -u");
-    std::cout << gitAuthors << std::endl;
+    std::istringstream stream(gitAuthors);
+    std::string line;
+
+    // Reset authors
+    _authors.clear();
+    _authorNames.clear();
+
+    // For each name-email pair, calculate map from author email to author names
+    while (std::getline(stream, line)) {
+        // Find the position of the email within angle brackets
+        size_t emailStart = line.find('<');
+        size_t emailEnd = line.find('>');
+
+        if (emailStart != std::string::npos && emailEnd != std::string::npos) {
+            // Extract name and email
+            std::string name = line.substr(0, emailStart - 1);
+            std::string email = line.substr(emailStart + 1, emailEnd - emailStart - 1);
+
+            // Trim whitespace from name
+            name.erase(name.find_last_not_of(" \n\r\t") + 1);
+
+            // Convert email to lowercase for comparison
+            std::transform(email.begin(), email.end(), email.begin(), [](unsigned char c) { return std::tolower(c); });
+
+            // Map the email to the name
+            _authorNames[email].push_back(name);
+
+            // Save author name (always using first one)
+            if (_authorNames[email].size() == 1)
+                _authors.push_back(email);
+        }
+    }
+
+    // Sort authors by name
+    std::sort(_authors.begin(), _authors.end(), [](std::string a0, std::string a1) { return _authorNames[a0][0] < _authorNames[a1][0]; });
+}
+
+void printListAuthors() {
+    for (const auto author : _authors)
+        std::cout << std::string() + BOLD + WHITE + _authorNames[author][0] + RESET + WHITE + " <" + BLUE + author + WHITE + ">" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -90,6 +145,9 @@ int main(int argc, char* argv[]) {
         std::cerr << "No git repo was detected or specified. You should run from inside a git repo or specify a repo" << std::endl;
         return 0;
     }
+
+    // Process repo authors (merge contributions from same author with different names)
+    processAuthors();
 
     if (listAuthors)
         printListAuthors();
