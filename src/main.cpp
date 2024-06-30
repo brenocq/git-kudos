@@ -31,6 +31,7 @@ const std::string BOLD = "\033[1m";
 const std::string ITALIC = "\033[3m";
 const std::string UNDERLINE = "\033[4m";
 
+std::string _thisAuthor;                                      // Email of current git user
 std::vector<std::string> _authors;                            // Sorted author emails
 std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
 std::vector<std::string> _extensions;                         // Extensions to parse (parse all is empty)
@@ -92,7 +93,18 @@ std::string runCommand(const std::string& command) {
     return result;
 }
 
+std::string processEmail(std::string email) {
+    std::transform(email.begin(), email.end(), email.begin(), [](unsigned char c) { return std::tolower(c); });
+    if (email == "not.committed.yet")
+        return _thisAuthor;
+    return email;
+}
+
 void processAuthors() {
+    // Get email of current git user
+    _thisAuthor = runCommand("git config user.email");
+    _thisAuthor.resize(_thisAuthor.size() - 1); // Remove \n
+
     // List repo authors
     std::string gitAuthors = runCommand("git log --format='%aN <%aE>' | sort -u");
     std::istringstream stream(gitAuthors);
@@ -117,7 +129,7 @@ void processAuthors() {
             name.erase(name.find_last_not_of(" \n\r\t") + 1);
 
             // Convert email to lowercase for comparison
-            std::transform(email.begin(), email.end(), email.begin(), [](unsigned char c) { return std::tolower(c); });
+            email = processEmail(email);
 
             // Map the email to the name
             _authorNames[email].push_back(name);
@@ -196,8 +208,7 @@ Kudos calcKudos(fs::path path) {
                 std::regex emailRegex("<(.*?)>");
                 std::smatch match;
                 if (std::regex_search(line, match, emailRegex)) {
-                    email = match[1].str();
-                    std::transform(email.begin(), email.end(), email.begin(), [](unsigned char c) { return std::tolower(c); });
+                    email = processEmail(match[1].str());
                     kudos.authorLines[email]++;
                     kudos.totalLines++;
                 }
