@@ -31,48 +31,69 @@ const std::string BOLD = "\033[1m";
 const std::string ITALIC = "\033[3m";
 const std::string UNDERLINE = "\033[4m";
 
+// Author information
 std::string _thisAuthor;                                      // Email of current git user
 std::vector<std::string> _authors;                            // Sorted author emails
 std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
-std::vector<std::string> _extensions;                         // Extensions to parse (parse all is empty)
+
+// Kudo options
+std::vector<std::string> _extensions; // Extensions to parse (parse all is empty)
+bool _printFileBreakdown;             // Print file breakdown for each author
 
 struct Kudos {
     fs::path path;
     size_t totalLines = 0;
     std::map<std::string, size_t> authorLines;
+    std::map<std::string, std::map<fs::path, size_t>> authorFileLines;
 
-    std::vector<std::pair<std::string, size_t>> calcSortedAuthors() const {
+    std::vector<std::string> calcSortedAuthors() const {
         // Sort authors by descending number of lines
         std::vector<std::pair<std::string, size_t>> sortedAuthors(authorLines.begin(), authorLines.end());
         std::sort(sortedAuthors.begin(), sortedAuthors.end(), [](const auto& a, const auto& b) { return b.second < a.second; });
-        // Remove authors without lines
-        for (int i = sortedAuthors.size() - 1; i >= 0; i--)
-            if (sortedAuthors[i].second == 0)
-                sortedAuthors.erase(sortedAuthors.begin() + i);
-        return sortedAuthors;
+        // Return authors
+        std::vector<std::string> result(sortedAuthors.size());
+        for (size_t i = 0; i < result.size(); i++)
+            result[i] = sortedAuthors[i].first;
+        return result;
+    }
+
+    std::vector<fs::path> calcSortedFiles(std::string author) const {
+        // Sort files by descending number of lines
+        std::vector<std::pair<fs::path, size_t>> sortedFiles(authorFileLines.at(author).begin(), authorFileLines.at(author).end());
+        std::sort(sortedFiles.begin(), sortedFiles.end(), [](const auto& a, const auto& b) { return b.second < a.second; });
+        // Return files
+        std::vector<fs::path> result(sortedFiles.size());
+        for (size_t i = 0; i < result.size(); i++)
+            result[i] = sortedFiles[i].first;
+        return result;
     }
 
     void operator+=(const Kudos& kudos) {
         totalLines += kudos.totalLines;
         for (const auto& [author, lines] : kudos.authorLines)
             authorLines[author] += lines;
+        for (const auto& [author, fileLines] : kudos.authorFileLines)
+            for (const auto& [file, lines] : fileLines)
+                authorFileLines[author][file] += lines;
     }
 };
 
 void printHelp() {
-    std::cout << "Usage: git-kudos [options] [<repo>]\n";
+    std::cout << "Usage: git-kudos [options] [<paths>]\n";
     std::cout << "\n";
     std::cout << "Options:\n";
     std::cout << "  -h, --help                   Print this help message\n";
     std::cout << "  -v, --version                Print version\n";
     std::cout << "  --list-authors               List authors in repo\n";
     std::cout << "  --extensions=<extensions>    Filter kudos by file extensions (e.g., cpp,h,c)\n";
+    std::cout << "  --file-breakdown             List files that each author contributed to\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
     std::cout << "  git-kudos\n";
     std::cout << "  git-kudos one/folder another/folder my/file.txt\n";
     std::cout << "  git-kudos --list-authors my/repo/path\n";
     std::cout << "  git-kudos --extensions=hpp,cpp,h,c\n";
+    std::cout << "  git-kudos --extensions=hpp,cpp,h,c --file-breakdown\n";
 }
 
 void printVersion() { std::cout << "git-kudos version " << KUDOS_VERSION << std::endl; }
@@ -156,27 +177,6 @@ void parseExtensions(std::string extensions) {
         _extensions.push_back("." + ext);
 }
 
-void printKudos(const Kudos& kudos) {
-    if (kudos.path.empty())
-        return;
-
-    // Print path
-    std::cout << BOLD + YELLOW + UNDERLINE + fs::absolute(kudos.path).string();
-    std::cout << RESET + WHITE + " (" << kudos.totalLines << " lines)" + RESET;
-    std::cout << std::endl;
-
-    // Calculate sorted authors
-    auto sortedAuthors = kudos.calcSortedAuthors();
-
-    // Print author kudos
-    for (const auto& [author, lines] : sortedAuthors) {
-        std::cout << BOLD + BLUE + _authorNames[author][0];                               // Print name
-        std::cout << RESET + WHITE + ": " << lines << " line" << (lines != 1 ? "s" : ""); // Print lines
-        std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"
-                  << std::endl; // Print percentage
-    }
-}
-
 Kudos calcKudos(fs::path path) {
     Kudos kudos{};
     kudos.path = path;
@@ -209,6 +209,7 @@ Kudos calcKudos(fs::path path) {
                 std::smatch match;
                 if (std::regex_search(line, match, emailRegex)) {
                     email = processEmail(match[1].str());
+                    kudos.authorFileLines[email][path]++;
                     kudos.authorLines[email]++;
                     kudos.totalLines++;
                 }
@@ -219,9 +220,44 @@ Kudos calcKudos(fs::path path) {
     return kudos;
 }
 
+void printKudos(const Kudos& kudos) {
+    if (kudos.path.empty())
+        return;
+
+    // Print path
+    std::cout << BOLD + YELLOW + UNDERLINE + fs::absolute(kudos.path).string();
+    std::cout << RESET + WHITE + " " << kudos.totalLines << " lines" + RESET;
+    std::cout << std::endl;
+
+    // Calculate sorted authors
+    auto sortedAuthors = kudos.calcSortedAuthors();
+
+    // Print author kudos
+    for (const std::string& author : sortedAuthors) {
+        size_t lines = kudos.authorLines.at(author);
+        std::cout << "    ";
+        std::cout << BOLD + BLUE + _authorNames[author][0];                                                                       // Print name
+        std::cout << RESET + WHITE + " " << lines << " lines";                                                                    // Print lines
+        std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"; // Print percentage
+        std::cout << std::endl;
+
+        if (_printFileBreakdown) {
+            auto sortedFiles = kudos.calcSortedFiles(author);
+            for (const fs::path& file : sortedFiles) {
+                std::cout << "        ";
+                std::cout << RESET + CYAN + file.string();                                                  // Print file
+                std::cout << RESET + WHITE << " " << kudos.authorFileLines.at(author).at(file) << " lines"; // Print lines
+                std::cout << std::endl;
+            }
+        }
+        std::cout << RESET;
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::vector<fs::path> paths;
     bool listAuthors = false;
+    _printFileBreakdown = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -235,6 +271,8 @@ int main(int argc, char* argv[]) {
             listAuthors = true;
         } else if (arg.find("--extensions=") != std::string::npos) {
             parseExtensions(arg.substr(13));
+        } else if (arg == "--file-breakdown") {
+            _printFileBreakdown = true;
         } else {
             if (fs::exists(arg)) {
                 paths.push_back(arg);
