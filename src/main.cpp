@@ -41,6 +41,7 @@ std::map<std::string, std::vector<std::string>> _authorNames; // Map author emai
 
 // Kudo options
 std::vector<std::string> _extensions; // Extensions to parse (parse all is empty)
+std::vector<fs::path> _excludePaths;  // Paths to exclude
 bool _printFileBreakdown;             // Print file breakdown for each author
 
 struct Kudos {
@@ -90,6 +91,7 @@ void printHelp() {
     std::cout << "  --list-authors               List authors in repo\n";
     std::cout << "  --extensions=<extensions>    Filter kudos by file extensions (e.g., cpp,h,c)\n";
     std::cout << "  --file-breakdown             List files that each author contributed to\n";
+    std::cout << "  --exclude=<paths>            Exclude specified files/folders (comma separated)\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
     std::cout << "  git-kudos\n";
@@ -97,6 +99,7 @@ void printHelp() {
     std::cout << "  git-kudos --list-authors my/repo/path\n";
     std::cout << "  git-kudos --extensions=hpp,cpp,h,c\n";
     std::cout << "  git-kudos --extensions=hpp,cpp,h,c --file-breakdown\n";
+    std::cout << "  git-kudos --exclude=folder1,folder2,file.cpp\n";
 }
 
 void printVersion() { std::cout << "git-kudos version " << KUDOS_VERSION << std::endl; }
@@ -178,6 +181,13 @@ void parseExtensions(std::string extensions) {
     std::string ext;
     while (std::getline(ss, ext, ','))
         _extensions.push_back("." + ext);
+}
+
+void parseExclusions(std::string exclusions) {
+    std::stringstream ss(exclusions);
+    std::string path;
+    while (std::getline(ss, path, ','))
+        _excludePaths.push_back(path);
 }
 
 Kudos calcKudos(fs::path path) {
@@ -279,6 +289,8 @@ int main(int argc, char* argv[]) {
             parseExtensions(arg.substr(13));
         } else if (arg == "--file-breakdown") {
             _printFileBreakdown = true;
+        } else if (arg.find("--exclude=") != std::string::npos) {
+            parseExclusions(arg.substr(10));
         } else {
             if (fs::exists(arg)) {
                 paths.push_back(arg);
@@ -314,6 +326,11 @@ int main(int argc, char* argv[]) {
                     // Ignore .git folder
                     if (entry.path().string().find(".git") != std::string::npos)
                         continue;
+                    // Ignore excluded paths
+                    if (std::any_of(_excludePaths.begin(), _excludePaths.end(), [&entry](const fs::path& excludePath) {
+                            return entry.path().string().find(excludePath.string()) != std::string::npos;
+                        }))
+                        continue;
                     files.push_back(entry.path());
                 }
             } else
@@ -337,3 +354,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
