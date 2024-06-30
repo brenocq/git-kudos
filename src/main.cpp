@@ -31,6 +31,9 @@ const std::string BOLD = "\033[1m";
 const std::string ITALIC = "\033[3m";
 const std::string UNDERLINE = "\033[4m";
 
+// Progress bar
+constexpr size_t BAR_WIDTH = 50;
+
 // Author information
 std::string _thisAuthor;                                      // Email of current git user
 std::vector<std::string> _authors;                            // Sorted author emails
@@ -181,38 +184,23 @@ Kudos calcKudos(fs::path path) {
     Kudos kudos{};
     kudos.path = path;
 
-    if (!fs::exists(path))
-        return kudos;
-    if (fs::is_directory(path)) {
-        // Ignore .git folder
-        if (path.string().find(".git") != std::string::npos)
-            return kudos;
+    // Use git blame to get line-by-line author information
+    std::string command = "git blame --line-porcelain " + path.string();
+    std::string output = runCommand(command);
 
-        for (const auto& entry : fs::directory_iterator(path))
-            kudos += calcKudos(entry.path());
-    } else {
-        // Filter by extension if necessary
-        if (!_extensions.empty())
-            if (!std::any_of(_extensions.begin(), _extensions.end(), [&path](std::string ext) { return ext == path.extension(); }))
-                return kudos;
-
-        // Use git blame to get line-by-line author information
-        std::string command = "git blame --line-porcelain " + path.string();
-        std::string output = runCommand(command);
-
-        std::istringstream stream(output);
-        std::string line;
-        std::string email;
-        while (std::getline(stream, line)) {
-            if (line.find("author-mail <") == 0) {
-                std::regex emailRegex("<(.*?)>");
-                std::smatch match;
-                if (std::regex_search(line, match, emailRegex)) {
-                    email = processEmail(match[1].str());
-                    kudos.authorFileLines[email][path]++;
-                    kudos.authorLines[email]++;
-                    kudos.totalLines++;
-                }
+    // Process git blame to update kudos
+    std::istringstream stream(output);
+    std::string line;
+    std::string email;
+    while (std::getline(stream, line)) {
+        if (line.find("author-mail <") == 0) {
+            std::regex emailRegex("<(.*?)>");
+            std::smatch match;
+            if (std::regex_search(line, match, emailRegex)) {
+                email = processEmail(match[1].str());
+                kudos.authorFileLines[email][path]++;
+                kudos.authorLines[email]++;
+                kudos.totalLines++;
             }
         }
     }
@@ -220,7 +208,25 @@ Kudos calcKudos(fs::path path) {
     return kudos;
 }
 
+void printProgressBar(size_t current, size_t total) {
+    std::cout << WHITE + "Processing [";
+    float progress = (current / (float)total);
+    int pos = BAR_WIDTH * progress;
+    for (int i = 0; i < BAR_WIDTH; ++i) {
+        if (i <= pos)
+            std::cout << GREEN << "+";
+        else
+            std::cout << RED << "-";
+    }
+    std::cout << WHITE + "] " + CYAN << current << "/" << total;
+    std::cout << " " + GREEN << int(progress * 100.0) << "%\r";
+    std::cout.flush();
+}
+
 void printKudos(const Kudos& kudos) {
+    for (size_t i = 0; i < BAR_WIDTH + 30; i++)
+        std::cout << " ";
+    std::cout << "\r";
     if (kudos.path.empty())
         return;
 
@@ -293,8 +299,38 @@ int main(int argc, char* argv[]) {
         printListAuthors();
     else {
         for (const auto& path : paths) {
-            // TODO check path is good
-            Kudos kudos = calcKudos(path);
+            // Compute files to process
+            std::vector<fs::path> files;
+            if (fs::is_directory(path)) {
+                for (const auto& entry : fs::recursive_directory_iterator(path)) {
+                    // Ignore folders
+                    if (fs::is_directory(entry.path()))
+                        continue;
+                    // Filter by extension if necessary
+                    if (!_extensions.empty())
+                        if (!std::any_of(_extensions.begin(), _extensions.end(),
+                                         [&entry](std::string ext) { return ext == entry.path().extension(); }))
+                            continue;
+                    // Ignore .git folder
+                    if (entry.path().string().find(".git") != std::string::npos)
+                        continue;
+                    files.push_back(entry.path());
+                }
+            } else
+                files.push_back(path);
+
+            // Compute kudos
+            Kudos kudos{};
+            kudos.path = path;
+            size_t progress = 0;
+            for (const auto& file : files) {
+                // Print progress
+                printProgressBar(progress++, files.size());
+                // Add file kudos
+                kudos += calcKudos(file);
+            }
+
+            // Print kudos
             printKudos(kudos);
         }
     }
