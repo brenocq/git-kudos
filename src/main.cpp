@@ -31,9 +31,9 @@ const std::string BOLD = "\033[1m";
 const std::string ITALIC = "\033[3m";
 const std::string UNDERLINE = "\033[4m";
 
-fs::path _repo;
 std::vector<std::string> _authors;                            // Sorted author emails
 std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
+std::vector<std::string> _extensions;                         // Extensions to parse (parse all is empty)
 
 struct Kudos {
     fs::path path;
@@ -59,15 +59,19 @@ struct Kudos {
 };
 
 void printHelp() {
-    std::cout << "Usage: git-kudos [-h | --help] [-v | --version] [<repo>]\n";
+    std::cout << "Usage: git-kudos [options] [<repo>]\n";
     std::cout << "\n";
     std::cout << "Options:\n";
-    std::cout << "  -h, --help           Print this help message\n";
-    std::cout << "  -v, --version        Print version\n";
-    std::cout << "  --list-authors       List authors in repo\n";
+    std::cout << "  -h, --help                   Print this help message\n";
+    std::cout << "  -v, --version                Print version\n";
+    std::cout << "  --list-authors               List authors in repo\n";
+    std::cout << "  --extensions=<extensions>    Filter kudos by file extensions (e.g., cpp,h,c)\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
-    std::cout << "  git-kudos --list-authors <repo>\n";
+    std::cout << "  git-kudos\n";
+    std::cout << "  git-kudos one/folder another/folder my/file.txt\n";
+    std::cout << "  git-kudos --list-authors my/repo/path\n";
+    std::cout << "  git-kudos --extensions=hpp,cpp,h,c\n";
 }
 
 void printVersion() { std::cout << "git-kudos version " << KUDOS_VERSION << std::endl; }
@@ -133,6 +137,13 @@ void printListAuthors() {
         std::cout << std::string() + RESET + BOLD + BLUE + _authorNames[author][0] + RESET + WHITE + ITALIC + " <" + author + ">" << std::endl;
 }
 
+void parseExtensions(std::string extensions) {
+    std::stringstream ss(extensions);
+    std::string ext;
+    while (std::getline(ss, ext, ','))
+        _extensions.push_back("." + ext);
+}
+
 void printKudos(const Kudos& kudos) {
     if (kudos.path.empty())
         return;
@@ -147,8 +158,8 @@ void printKudos(const Kudos& kudos) {
 
     // Print author kudos
     for (const auto& [author, lines] : sortedAuthors) {
-        std::cout << BOLD + BLUE + _authorNames[author][0];     // Print name
-        std::cout << RESET + WHITE + ": " << lines << " lines"; // Print lines
+        std::cout << BOLD + BLUE + _authorNames[author][0];                               // Print name
+        std::cout << RESET + WHITE + ": " << lines << " line" << (lines != 1 ? "s" : ""); // Print lines
         std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"
                   << std::endl; // Print percentage
     }
@@ -168,6 +179,11 @@ Kudos calcKudos(fs::path path) {
         for (const auto& entry : fs::directory_iterator(path))
             kudos += calcKudos(entry.path());
     } else {
+        // Filter by extension if necessary
+        if (!_extensions.empty())
+            if (!std::any_of(_extensions.begin(), _extensions.end(), [&path](std::string ext) { return ext == path.extension(); }))
+                return kudos;
+
         // Use git blame to get line-by-line author information
         std::string command = "git blame --line-porcelain " + path.string();
         std::string output = runCommand(command);
@@ -206,6 +222,8 @@ int main(int argc, char* argv[]) {
             return 0;
         } else if (arg == "--list-authors") {
             listAuthors = true;
+        } else if (arg.find("--extensions=") != std::string::npos) {
+            parseExtensions(arg.substr(13));
         } else {
             if (fs::exists(arg)) {
                 paths.push_back(arg);
