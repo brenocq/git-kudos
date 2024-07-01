@@ -88,18 +88,16 @@ void printHelp() {
     std::cout << "Options:\n";
     std::cout << "  -h, --help                   Print this help message\n";
     std::cout << "  -v, --version                Print version\n";
-    std::cout << "  --list-authors               List authors in repo\n";
     std::cout << "  --extensions=<extensions>    Filter kudos by file extensions (e.g., cpp,h,c)\n";
     std::cout << "  --file-breakdown             List files that each author contributed to\n";
     std::cout << "  --exclude=<paths>            Exclude specified files/folders (comma separated)\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
-    std::cout << "  git-kudos\n";
-    std::cout << "  git-kudos one/folder another/folder my/file.txt\n";
-    std::cout << "  git-kudos --list-authors my/repo/path\n";
-    std::cout << "  git-kudos --extensions=hpp,cpp,h,c\n";
-    std::cout << "  git-kudos --extensions=hpp,cpp,h,c --file-breakdown\n";
-    std::cout << "  git-kudos --exclude=folder1,folder2,file.cpp\n";
+    std::cout << "  git-kudos                                       Kudos for current path\n";
+    std::cout << "  git-kudos some/folder/ file.txt                 Kudos for selected paths\n";
+    std::cout << "  git-kudos --extensions=hpp,cpp,h,c              Filter by C/C++ files\n";
+    std::cout << "  git-kudos --extensions=py --file-breakdown      Show file breakdown list for python files\n";
+    std::cout << "  git-kudos --exclude=folder1,folder2,file.cpp    Exclude paths from search\n";
 }
 
 void printVersion() { std::cout << "git-kudos version " << KUDOS_VERSION << std::endl; }
@@ -169,11 +167,6 @@ void processAuthors() {
 
     // Sort authors by name
     std::sort(_authors.begin(), _authors.end(), [](std::string a0, std::string a1) { return _authorNames[a0][0] < _authorNames[a1][0]; });
-}
-
-void printListAuthors() {
-    for (const auto author : _authors)
-        std::cout << std::string() + RESET + BOLD + BLUE + _authorNames[author][0] + RESET + WHITE + ITALIC + " <" + author + ">" << std::endl;
 }
 
 void parseExtensions(std::string extensions) {
@@ -272,7 +265,6 @@ void printKudos(const Kudos& kudos) {
 
 int main(int argc, char* argv[]) {
     std::vector<fs::path> paths;
-    bool listAuthors = false;
     _printFileBreakdown = false;
 
     for (int i = 1; i < argc; i++) {
@@ -283,8 +275,6 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--version" || arg == "-v") {
             printVersion();
             return 0;
-        } else if (arg == "--list-authors") {
-            listAuthors = true;
         } else if (arg.find("--extensions=") != std::string::npos) {
             parseExtensions(arg.substr(13));
         } else if (arg == "--file-breakdown") {
@@ -307,49 +297,44 @@ int main(int argc, char* argv[]) {
     // TODO handle when paths are from different repos
     processAuthors();
 
-    if (listAuthors)
-        printListAuthors();
-    else {
-        for (const auto& path : paths) {
-            // Compute files to process
-            std::vector<fs::path> files;
-            if (fs::is_directory(path)) {
-                for (const auto& entry : fs::recursive_directory_iterator(path)) {
-                    // Ignore folders
-                    if (fs::is_directory(entry.path()))
+    for (const auto& path : paths) {
+        // Compute files to process
+        std::vector<fs::path> files;
+        if (fs::is_directory(path)) {
+            for (const auto& entry : fs::recursive_directory_iterator(path)) {
+                // Ignore folders
+                if (fs::is_directory(entry.path()))
+                    continue;
+                // Filter by extension if necessary
+                if (!_extensions.empty())
+                    if (!std::any_of(_extensions.begin(), _extensions.end(), [&entry](std::string ext) { return ext == entry.path().extension(); }))
                         continue;
-                    // Filter by extension if necessary
-                    if (!_extensions.empty())
-                        if (!std::any_of(_extensions.begin(), _extensions.end(),
-                                         [&entry](std::string ext) { return ext == entry.path().extension(); }))
-                            continue;
-                    // Ignore .git folder
-                    if (entry.path().string().find(".git") != std::string::npos)
-                        continue;
-                    // Ignore excluded paths
-                    if (std::any_of(_excludePaths.begin(), _excludePaths.end(), [&entry](const fs::path& excludePath) {
-                            return entry.path().string().find(excludePath.string()) != std::string::npos;
-                        }))
-                        continue;
-                    files.push_back(entry.path());
-                }
-            } else
-                files.push_back(path);
-
-            // Compute kudos
-            Kudos kudos{};
-            kudos.path = path;
-            size_t progress = 0;
-            for (const auto& file : files) {
-                // Print progress
-                printProgressBar(progress++, files.size());
-                // Add file kudos
-                kudos += calcKudos(file);
+                // Ignore .git folder
+                if (entry.path().string().find(".git") != std::string::npos)
+                    continue;
+                // Ignore excluded paths
+                if (std::any_of(_excludePaths.begin(), _excludePaths.end(), [&entry](const fs::path& excludePath) {
+                        return entry.path().string().find(excludePath.string()) != std::string::npos;
+                    }))
+                    continue;
+                files.push_back(entry.path());
             }
+        } else
+            files.push_back(path);
 
-            // Print kudos
-            printKudos(kudos);
+        // Compute kudos
+        Kudos kudos{};
+        kudos.path = path;
+        size_t progress = 0;
+        for (const auto& file : files) {
+            // Print progress
+            printProgressBar(progress++, files.size());
+            // Add file kudos
+            kudos += calcKudos(file);
         }
+
+        // Print kudos
+        printKudos(kudos);
     }
 
     return 0;
