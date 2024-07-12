@@ -86,18 +86,18 @@ void printHelp() {
     std::cout << "Usage: git-kudos [options] [<paths>]\n";
     std::cout << "\n";
     std::cout << "Options:\n";
-    std::cout << "  -h, --help                   Print this help message\n";
-    std::cout << "  -v, --version                Print version\n";
-    std::cout << "  --extensions=<extensions>    Filter kudos by file extensions (e.g., cpp,h,c)\n";
-    std::cout << "  -d, --detailed               Detailed list of files that each author contributed to\n";
-    std::cout << "  --exclude=<paths>            Exclude specified files/folders (comma separated)\n";
+    std::cout << "  -h, --help                    Print this help message\n";
+    std::cout << "  -v, --version                 Print version\n";
+    std::cout << "  -e, --extensions=<extensions> Only include files with specified extensions (e.g., cpp,h,c)\n";
+    std::cout << "  -d, --detailed                Output detailed list of files\n";
+    std::cout << "  -i, --ignore=<paths>          Ignore specified files and folders (comma separated)\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
-    std::cout << "  git-kudos                                       Kudos for current path\n";
-    std::cout << "  git-kudos some/folder/ file.txt                 Kudos for selected paths\n";
-    std::cout << "  git-kudos --extensions=hpp,cpp,h,c              Filter by C/C++ files\n";
-    std::cout << "  git-kudos --extensions=py --detailed            Show file breakdown list for python files\n";
-    std::cout << "  git-kudos --exclude=folder1,folder2,file.cpp    Exclude paths from search\n";
+    std::cout << "  git-kudos                                       Show kudos for current path\n";
+    std::cout << "  git-kudos some/folder/ file.txt                 Show kudos for selected paths\n";
+    std::cout << "  git-kudos --extensions=h,hpp,c,cpp              Filter by C/C++ files\n";
+    std::cout << "  git-kudos --extensions=py --detailed            Show detailed file breakdown for python files\n";
+    std::cout << "  git-kudos --ignore=folder1,folder2,file.cpp     Ignore specified paths\n";
 }
 
 void printVersion() { std::cout << "git-kudos version " << KUDOS_VERSION << std::endl; }
@@ -269,23 +269,31 @@ int main(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
+        if (arg.empty())
+            continue;
         if (arg == "--help" || arg == "-h") {
             printHelp();
             return 0;
         } else if (arg == "--version" || arg == "-v") {
             printVersion();
             return 0;
-        } else if (arg.find("--extensions=") != std::string::npos) {
-            parseExtensions(arg.substr(13));
+        } else if (arg.find("--extensions=") != std::string::npos || arg.find("-e=") != std::string::npos) {
+            parseExtensions(arg.substr(arg.find('=') + 1));
         } else if (arg == "--detailed" || arg == "-d") {
             _printFileBreakdown = true;
-        } else if (arg.find("--exclude=") != std::string::npos) {
-            parseExclusions(arg.substr(10));
+        } else if (arg.find("--ignore=") != std::string::npos || arg.find("-i=") != std::string::npos) {
+            parseExclusions(arg.substr(arg.find('=') + 1));
         } else {
-            if (fs::exists(arg)) {
-                paths.push_back(arg);
-            } else
+            if (arg[0] == '-') {
+                // Warn unknown option
                 std::cerr << "Unknown option " << arg << std::endl;
+            } else if (fs::exists(arg)) {
+                // Add path to be processed
+                paths.push_back(arg);
+            } else {
+                // Warn unknown path
+                std::cerr << "Unknown path " << arg << std::endl;
+            }
         }
     }
 
