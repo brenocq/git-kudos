@@ -1,20 +1,21 @@
 <h3 align="center">
-	git-kudos
+    <img width="100" src="https://github.com/user-attachments/assets/2a3bf635-c5e2-47a6-8478-82b4b9cf732c"/><br/>
+    <code>git-kudos</code>
 </h3>
 
 <h6 align="center">
-  <a href="https://github.com/brenocq/git-kudos#-usage">Usage</a>
-  ·
-  <a href="https://github.com/brenocq/git-kudos#-installation">Installation</a>
-  ·
-  <a href="https://github.com/brenocq/git-kudos#-contributing">Contributing</a>
+    <a href="https://github.com/brenocq/git-kudos#usage">Usage</a>
+    ·
+    <a href="https://github.com/brenocq/git-kudos#installation">Installation</a>
+    ·
+    <a href="https://github.com/brenocq/git-kudos#contributing">Contributing</a>
 </h6>
 
 TODO badges
 
 `git-kudos` is an open source project that lists the contributions of each author in a Git repository. It shows who has written the most lines of code, making it easy to recognize and celebrate everyone's hard work. Give them their well-deserved kudos!🎉
 
-## Usage
+### Usage
 
 ## Installation
 
@@ -42,4 +43,4 @@ TODO
 All contributions are welcome! Whether you're reporting [issues](https://github.com/brenocq/git-kudos/issues/new), suggesting new features, or submitting [pull requests](https://github.com/brenocq/git-kudos/compare), your help is greatly appreciated. 🫶
 
 ## License
-[MIT](license) © [brenocq](website)
+[MIT](LICENSE) © [brenocq](brenocq.com)
