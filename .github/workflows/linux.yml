@@ -27,7 +27,7 @@ jobs:
       run: |
         set -e
         ./build/git-kudos || (
-          echo "Run failed, starting gdb..." &&
+          echo "\n\nRun failed, getting backtrace from gdb...\n\n" &&
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug &&
           cmake --build build -- -j &&
           gdb -batch -ex "run" -ex "bt" --args ./build/git-kudos; exit 1

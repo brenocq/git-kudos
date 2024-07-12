@@ -128,7 +128,8 @@ std::string processEmail(std::string email) {
 void processAuthors() {
     // Get email of current git user
     _thisAuthor = runCommand("git config user.email");
-    _thisAuthor.resize(_thisAuthor.size() - 1); // Remove \n
+    if (!_thisAuthor.empty())
+        _thisAuthor.resize(_thisAuthor.size() - 1); // Remove \n
 
     // List repo authors
     std::string gitAuthors = runCommand("git log --format='%aN <%aE>' | sort -u");
