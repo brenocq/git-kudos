@@ -1,0 +1,27 @@
+name: 🪟 Windows
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install CMake
+      run: choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
+    - name: Configure CMake
+      run: cmake -S . -B build
+
+    - name: Build CMake
+      run: cmake --build . --config Release
+
+    - name: Run
+      run: ./build/Release/git-kudos.exe
