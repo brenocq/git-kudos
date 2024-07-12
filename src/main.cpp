@@ -15,6 +15,7 @@
 #include <regex>
 #include <string>
 #include <vector>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
