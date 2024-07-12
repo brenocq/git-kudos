@@ -9,16 +9,21 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
     - name: Install CMake
-      run: sudo apt-get update && sudo apt-get install -y cmake gdb
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake gdb clang g++
 
     - name: Configure CMake
-      run: cmake -S . -B build
+      run: cmake -S . -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
 
     - name: Build CMake
       run: cmake --build build -- -j
@@ -28,7 +33,7 @@ jobs:
         set -e
         ./build/git-kudos || (
           echo "\n\nRun failed, getting backtrace from gdb...\n\n" &&
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug &&
+          cmake -S . -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug &&
           cmake --build build -- -j &&
           gdb -batch -ex "run" -ex "bt" --args ./build/git-kudos; exit 1
         )
