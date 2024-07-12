@@ -41,7 +41,7 @@ std::map<std::string, std::vector<std::string>> _authorNames; // Map author emai
 
 // Kudo options
 std::vector<std::string> _extensions; // Extensions to parse (parse all is empty)
-std::vector<fs::path> _excludePaths;  // Paths to exclude
+std::vector<fs::path> _ignorePaths;   // Paths to ignore
 bool _printFileBreakdown;             // Print file breakdown for each author
 
 struct Kudos {
@@ -180,7 +180,7 @@ void parseExclusions(std::string exclusions) {
     std::stringstream ss(exclusions);
     std::string path;
     while (std::getline(ss, path, ','))
-        _excludePaths.push_back(path);
+        _ignorePaths.push_back(path);
 }
 
 Kudos calcKudos(fs::path path) {
@@ -226,16 +226,18 @@ void printProgressBar(size_t current, size_t total) {
     std::cout.flush();
 }
 
-void printKudos(const Kudos& kudos) {
+void printKudos(const Kudos& kudos, size_t numFiles) {
+    // Pretty number print
+    auto print = [](size_t num, std::string label) -> std::string { return std::to_string(num) + " " + label + (num != 1 ? "s" : ""); };
+
+    // Erase progress bar
     for (size_t i = 0; i < BAR_WIDTH + 30; i++)
         std::cout << " ";
     std::cout << "\r";
-    if (kudos.path.empty())
-        return;
 
     // Print path
-    std::cout << BOLD + YELLOW + UNDERLINE + fs::absolute(kudos.path).string();
-    std::cout << RESET + WHITE + " " << kudos.totalLines << " lines" + RESET;
+    std::cout << BOLD + YELLOW + UNDERLINE << "Kudos for " << print(numFiles, "file");
+    std::cout << RESET + WHITE + " " << print(kudos.totalLines, "line") + RESET;
     std::cout << std::endl;
 
     // Calculate sorted authors
@@ -246,16 +248,17 @@ void printKudos(const Kudos& kudos) {
         size_t lines = kudos.authorLines.at(author);
         std::cout << "    ";
         std::cout << BOLD + BLUE + _authorNames[author][0];                                                                       // Print name
-        std::cout << RESET + WHITE + " " << lines << " lines";                                                                    // Print lines
+        std::cout << RESET + WHITE + " " << print(lines, "line");                                                                 // Print lines
         std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"; // Print percentage
         std::cout << std::endl;
 
         if (_printFileBreakdown) {
             auto sortedFiles = kudos.calcSortedFiles(author);
             for (const fs::path& file : sortedFiles) {
+                size_t numLines = kudos.authorFileLines.at(author).at(file);
                 std::cout << "        ";
-                std::cout << RESET + CYAN + file.string();                                                  // Print file
-                std::cout << RESET + WHITE << " " << kudos.authorFileLines.at(author).at(file) << " lines"; // Print lines
+                std::cout << RESET + CYAN + file.string();                    // Print file
+                std::cout << RESET + WHITE << " " << print(numLines, "line"); // Print lines
                 std::cout << std::endl;
             }
         }
@@ -305,9 +308,9 @@ int main(int argc, char* argv[]) {
     // TODO handle when paths are from different repos
     processAuthors();
 
+    // Compute files to process
+    std::vector<fs::path> files;
     for (const auto& path : paths) {
-        // Compute files to process
-        std::vector<fs::path> files;
         if (fs::is_directory(path)) {
             for (const auto& entry : fs::recursive_directory_iterator(path)) {
                 // Ignore folders
@@ -320,30 +323,29 @@ int main(int argc, char* argv[]) {
                 // Ignore .git folder
                 if (entry.path().string().find(".git") != std::string::npos)
                     continue;
-                // Ignore excluded paths
-                if (std::any_of(_excludePaths.begin(), _excludePaths.end(), [&entry](const fs::path& excludePath) {
-                        return entry.path().string().find(excludePath.string()) != std::string::npos;
+                // Skip ignored paths
+                if (std::any_of(_ignorePaths.begin(), _ignorePaths.end(), [&entry](const fs::path& ignorePath) {
+                        return entry.path().string().find(ignorePath.string()) != std::string::npos;
                     }))
                     continue;
                 files.push_back(entry.path());
             }
         } else
             files.push_back(path);
-
-        // Compute kudos
-        Kudos kudos{};
-        kudos.path = path;
-        size_t progress = 0;
-        for (const auto& file : files) {
-            // Print progress
-            printProgressBar(progress++, files.size());
-            // Add file kudos
-            kudos += calcKudos(file);
-        }
-
-        // Print kudos
-        printKudos(kudos);
     }
+
+    // Compute kudos
+    Kudos kudos{};
+    size_t progress = 0;
+    for (const auto& file : files) {
+        // Print progress
+        printProgressBar(progress++, files.size());
+        // Add file kudos
+        kudos += calcKudos(file);
+    }
+
+    // Print kudos
+    printKudos(kudos, files.size());
 
     return 0;
 }
