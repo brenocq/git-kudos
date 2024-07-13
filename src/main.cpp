@@ -82,17 +82,17 @@ struct Kudos {
 };
 
 void printHelp() {
-    std::cout << "Usage: git-kudos [-d] [<paths>] [-x <paths-to-exclude>]\n";
+    std::cout << "Usage: git-kudos [-d | --detailed] [<paths>] [-x | --exclude <paths-to-exclude>]\n";
     std::cout << "\n";
     std::cout << "Options:\n";
     std::cout << "  -h, --help                        Print this help message\n";
     std::cout << "  -v, --version                     Print version\n";
     std::cout << "  -d, --detailed                    Output detailed list of files\n";
-    std::cout << "  -x, --exclude <paths-to-exclude>  Exclude specified files and folders\n";
+    std::cout << "  -x, --exclude <paths-to-exclude>  Exclude specified paths\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
     std::cout << "  git-kudos                                   Kudos for current path\n";
-    std::cout << "  git-kudos include/menu/ file.txt data/*.js  Kudos for files and folders\n";
+    std::cout << "  git-kudos include/menu/ file.txt data/*.js  Kudos for specified files and folders\n";
     std::cout << "  git-kudos out[A-C].csv                      Kudos for outA.csv outB.csv outC.csv\n";
     std::cout << "  git-kudos alg[15].rs                        Kudos for alg1.rs alg5.rs\n";
     std::cout << "  git-kudos **.{h,c,hpp,cpp}                  Kudos for by C/C++ files\n";

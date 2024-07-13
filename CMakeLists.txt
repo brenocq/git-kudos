@@ -10,9 +10,31 @@ add_executable(git-kudos src/main.cpp)
 
 #---------- Installation ----------#
 include(GNUInstallDirs)
+
+# Install executable
 install(TARGETS git-kudos
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# Install include
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/cmakeConfig.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/git-kudos
+)
+
+# Install bash completion script
+install(FILES ${CMAKE_SOURCE_DIR}/completion/git-kudos.sh
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/bash-completion/completions"
+    RENAME git-kudos
+)
+
+# Install fish completion script
+install(FILES ${CMAKE_SOURCE_DIR}/completion/git-kudos.fish
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/fish/completions"
+    RENAME git-kudos.fish
+)
+
+# Install zsh completion script
+install(FILES ${CMAKE_SOURCE_DIR}/completion/git-kudos.zsh
+    DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/zsh/site-functions"
+    RENAME _git-kudos
 )
