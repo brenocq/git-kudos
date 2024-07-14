@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -41,14 +42,15 @@ const std::string WHITE = "\033[37m";
 const std::string BOLD = "\033[1m";
 const std::string ITALIC = "\033[3m";
 const std::string UNDERLINE = "\033[4m";
+const std::string CURSOR_UP = "\033[A";
 
 // Progress bar
 constexpr size_t BAR_WIDTH = 50;
 
 // Author information
-std::string _thisAuthor;                                      // Email of current git user
-std::vector<std::string> _authors;                            // Sorted author emails
-std::map<std::string, std::vector<std::string>> _authorNames; // Map author email to each name
+std::string _thisAuthor;                        // Email of current git user
+std::set<std::string> _authors;                 // Author emails
+std::map<std::string, std::string> _authorName; // Map author email to each name
 
 // Kudo options
 bool _printFileBreakdown; // Print file breakdown for each author
@@ -138,66 +140,24 @@ std::string processEmail(std::string email) {
     return email;
 }
 
-void processAuthors() {
-    // Get email of current git user
-    _thisAuthor = runCommand("git config user.email");
-
-    // Trim author name
-    if (!_thisAuthor.empty())
-        _thisAuthor.erase(_thisAuthor.find_last_not_of(" \n\r\t") + 1);
-
-    // List repo authors
-    std::string gitAuthors = runCommand("git log --format='%aN <%aE>' | sort -u");
-    std::istringstream stream(gitAuthors);
-    std::string line;
-
-    // Reset authors
-    _authors.clear();
-    _authorNames.clear();
-
-    // For each name-email pair, calculate map from author email to author names
-    while (std::getline(stream, line)) {
-        // Find the position of the email within angle brackets
-        size_t emailStart = line.find('<');
-        size_t emailEnd = line.find('>');
-
-        if (emailStart != std::string::npos && emailEnd != std::string::npos) {
-            // Extract name and email
-            std::string name = line.substr(0, emailStart - 1);
-            std::string email = line.substr(emailStart + 1, emailEnd - emailStart - 1);
-
-            // Trim whitespace from name
-            name.erase(name.find_last_not_of(" \n\r\t") + 1);
-
-            // Convert email to lowercase for comparison
-            email = processEmail(email);
-
-            // Map the email to the name
-            _authorNames[email].push_back(name);
-
-            // Save author name (always using first one)
-            if (_authorNames[email].size() == 1)
-                _authors.push_back(email);
-        }
-    }
-
-    // Sort authors by name
-    std::sort(_authors.begin(), _authors.end(), [](std::string a0, std::string a1) { return _authorNames[a0][0] < _authorNames[a1][0]; });
-}
-
 Kudos calcKudos(fs::path path) {
     Kudos kudos{};
     kudos.path = path;
 
     // Use git blame to get line-by-line author information
-    std::string command = "git blame --line-porcelain " + path.string();
+    std::string command = "cd " + path.parent_path().string() + " && git blame --line-porcelain " + path.filename().string();
     std::string output = runCommand(command);
 
     // Process git blame to update kudos
     std::istringstream stream(output);
     std::string line;
     std::string email;
+    std::string authorName = "";
     while (std::getline(stream, line)) {
+        // Get author name for next commit
+        if (line.find("author ") == 0)
+            authorName = line.substr(6);
+        // Get author email for next commit
         if (line.find("author-mail <") == 0) {
             std::regex emailRegex("<(.*?)>");
             std::smatch match;
@@ -206,6 +166,11 @@ Kudos calcKudos(fs::path path) {
                 kudos.authorFileLines[email][path]++;
                 kudos.authorLines[email]++;
                 kudos.totalLines++;
+
+                if (_authors.find(email) == _authors.end()) {
+                    _authors.insert(email);
+                    _authorName[email] = authorName;
+                }
             }
         }
     }
@@ -213,27 +178,50 @@ Kudos calcKudos(fs::path path) {
     return kudos;
 }
 
-void printProgressBar(size_t current, size_t total) {
-    std::cout << WHITE + "Processing [";
-    float progress = (current / (float)total);
+size_t printProgressBar(size_t current, size_t total, fs::path file) {
+    static size_t lastFileSize = 0;
+
+    // Calculate progress
+    float progress = static_cast<float>(current) / total;
     int pos = BAR_WIDTH * progress;
+
+    // Prepare progress bar line
+    std::ostringstream progressBar;
+    progressBar << WHITE << "Processing [";
     for (int i = 0; i < BAR_WIDTH; ++i) {
         if (i <= pos)
-            std::cout << GREEN << "+";
+            progressBar << GREEN << "+";
         else
-            std::cout << RED << "-";
+            progressBar << RED << "-";
     }
-    std::cout << WHITE + "] " + CYAN << current << "/" << total << " files";
-    std::cout << " " + GREEN << int(progress * 100.0) << "%\r";
+    progressBar << WHITE << "] ";
+    progressBar << CYAN << current << "/" << total << " files";
+    progressBar << " " << GREEN << std::fixed << std::setprecision(2) << (progress * 100.0) << "%" << RESET;
+
+    // Print progress bar
+    std::cout << progressBar.str();
+
+    // Clear previous file name
+    std::cout << std::endl << "           ";
+    for (size_t i = 0; i < lastFileSize; i++)
+        std::cout << " ";
+    // Print file name
+    std::cout << "\r           " << WHITE << file.string() << "\r" << CURSOR_UP;
+
+    // Calculate the number of spaces needed to clear both lines
+    std::regex ansiRegex(R"(\x1b\[[0-9]*m)");
+    size_t barLineWidth = std::regex_replace(progressBar.str(), ansiRegex, "").size();
+    lastFileSize = file.string().size();
+    size_t numSpaces = std::max(lastFileSize + 11, barLineWidth);
+
     std::cout.flush();
+
+    return numSpaces;
 }
 
 void printKudos(const Kudos& kudos, size_t numFiles, bool detailedPrint) {
     // Pretty number print
     auto print = [](size_t num, std::string label) -> std::string { return std::to_string(num) + " " + label + (num != 1 ? "s" : ""); };
-
-    // Skip progress bar
-    std::cout << std::endl;
 
     // Print path
     std::cout << BOLD + YELLOW + UNDERLINE << "Kudos for " << print(numFiles, "file");
@@ -247,7 +235,7 @@ void printKudos(const Kudos& kudos, size_t numFiles, bool detailedPrint) {
     for (const std::string& author : sortedAuthors) {
         size_t lines = kudos.authorLines.at(author);
         std::cout << "    ";
-        std::cout << BOLD + BLUE + _authorNames[author][0];                                                                       // Print name
+        std::cout << BOLD + BLUE + _authorName[author];                                                                           // Print name
         std::cout << RESET + WHITE + " " << print(lines, "line");                                                                 // Print lines
         std::cout << RESET + GREEN + " (" << std::fixed << std::setprecision(2) << lines / (float)kudos.totalLines * 100 << "%)"; // Print percentage
         std::cout << std::endl;
@@ -307,10 +295,6 @@ int main(int argc, char* argv[]) {
     if (paths.empty())
         paths.push_back(".");
 
-    // Process repo authors (merge contributions from same author with different names)
-    // TODO handle when paths are from different repos
-    processAuthors();
-
     // List all input files
     std::vector<fs::path> allFiles;
     for (const auto& path : paths) {
@@ -335,20 +319,34 @@ int main(int argc, char* argv[]) {
             continue;
         filesToProcess.push_back(file);
     }
+    std::sort(filesToProcess.begin(), filesToProcess.end());
+
+    // Get email of current git user (necessary if change not commited yet)
+    _thisAuthor = runCommand("git config user.email");
+    if (!_thisAuthor.empty())
+        _thisAuthor.erase(_thisAuthor.find_last_not_of(" \n\r\t") + 1);
 
     // Compute kudos
     Kudos kudos{};
     size_t progress = 1;
+    size_t clearWidth = 0;
     for (const auto& file : filesToProcess) {
         // Print progress
-        printProgressBar(progress++, filesToProcess.size());
+        clearWidth = printProgressBar(progress++, filesToProcess.size(), file);
         // Add file kudos
         kudos += calcKudos(file);
     }
+
+    // Clear progress bar
+    for (size_t l = 0; l < 2; l++) {
+        for (size_t i = 0; i < clearWidth; i++)
+            std::cout << " ";
+        std::cout << std::endl;
+    }
+    std::cout << "\r" << CURSOR_UP << CURSOR_UP;
 
     // Print kudos
     printKudos(kudos, filesToProcess.size(), isDetailedPrint);
 
     return 0;
 }
-
