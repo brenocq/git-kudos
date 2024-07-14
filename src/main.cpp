@@ -7,6 +7,7 @@
 #include "cmakeConfig.hpp"
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -16,6 +17,15 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#define popen _popen
+#define pclose _pclose
+#define DEV_NULL "NUL"
+#else
+#define DEV_NULL "/dev/null"
+#endif
 
 namespace fs = std::filesystem;
 
@@ -108,7 +118,7 @@ void printVersion() { std::cout << "git-kudos version v" << KUDOS_VERSION << std
 std::string runCommand(const std::string& command) {
     std::array<char, 512> buffer;
     std::string result;
-    std::shared_ptr<FILE> pipe(popen(("sh -c \"" + command + " 2>/dev/null\"").c_str(), "r"), pclose);
+    std::shared_ptr<FILE> pipe(popen((command + " 2> " + DEV_NULL).c_str(), "r"), pclose);
 
     if (!pipe) {
         std::cerr << "popen() failed!" << std::endl;
@@ -131,8 +141,10 @@ std::string processEmail(std::string email) {
 void processAuthors() {
     // Get email of current git user
     _thisAuthor = runCommand("git config user.email");
+
+    // Trim author name
     if (!_thisAuthor.empty())
-        _thisAuthor.resize(_thisAuthor.size() - 1); // Remove \n
+        _thisAuthor.erase(_thisAuthor.find_last_not_of(" \n\r\t") + 1);
 
     // List repo authors
     std::string gitAuthors = runCommand("git log --format='%aN <%aE>' | sort -u");
@@ -220,10 +232,7 @@ void printKudos(const Kudos& kudos, size_t numFiles, bool detailedPrint) {
     // Pretty number print
     auto print = [](size_t num, std::string label) -> std::string { return std::to_string(num) + " " + label + (num != 1 ? "s" : ""); };
 
-    // Erase progress bar
-    // for (size_t i = 0; i < BAR_WIDTH + 30; i++)
-    //    std::cout << " ";
-    // std::cout << "\r";
+    // Skip progress bar
     std::cout << std::endl;
 
     // Print path
