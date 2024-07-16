@@ -56,6 +56,16 @@ Examples:
 
 ## Installation
 
+<h4><img width="20" src="https://github.com/user-attachments/assets/24e01504-b9f9-47d2-b566-c0f74427768f">&nbsp; Source</h4>
+
+```
+cd git-kudos
+cmake -S . -B build
+cmake --build build
+sudo cmake --install build
+```
+
+&nbsp;
 <h4><img width="20" src="https://github.com/user-attachments/assets/9a87f037-99dc-482e-ad61-e0e88a3c5231">&nbsp; Linux</h4>
 
 ```bash
