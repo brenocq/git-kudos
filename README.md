@@ -11,7 +11,17 @@
     <a href="https://github.com/brenocq/git-kudos#contributing">Contributing</a>
 </h6>
 
-TODO badges
+<div align="center">
+  <a href="https://github.com/brenocq/git-kudos/actions/workflows/linux.yml">
+    <img src="https://github.com/brenocq/git-kudos/actions/workflows/linux.yml/badge.svg" alt="🐧 Linux">
+  </a>
+  <a href="https://github.com/brenocq/git-kudos/actions/workflows/macos.yml">
+    <img src="https://github.com/brenocq/git-kudos/actions/workflows/macos.yml/badge.svg" alt="🍎 MacOS">
+  </a>
+  <a href="https://github.com/brenocq/git-kudos/actions/workflows/windows.yml">
+    <img src="https://github.com/brenocq/git-kudos/actions/workflows/windows.yml/badge.svg" alt="🪟 Windows">
+  </a>
+</div>
 
 `git-kudos` is an open source project that lists the contributions of each author in a Git repository. It shows who has written the most lines of code, making it easy to recognize and celebrate everyone's hard work. Give them their well-deserved kudos!🎉
 
