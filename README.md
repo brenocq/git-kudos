@@ -15,7 +15,34 @@ TODO badges
 
 `git-kudos` is an open source project that lists the contributions of each author in a Git repository. It shows who has written the most lines of code, making it easy to recognize and celebrate everyone's hard work. Give them their well-deserved kudos!🎉
 
-### Usage
+## Usage
+
+<p align="center">
+    <img src="https://github.com/user-attachments/assets/c569a1e2-15ac-4026-93a2-39e33402da67">
+</p>
+
+```
+~ ❯ git-kudos --help
+Usage: git-kudos [-d | --detailed] [<paths>] [-x | --exclude <paths-to-exclude>]
+
+Options:
+  -h, --help                        Print this help message
+  -v, --version                     Print version
+  -d, --detailed                    Output detailed list of files
+  -x, --exclude <paths-to-exclude>  Exclude specified paths
+
+Examples:
+  git-kudos                                   Kudos for current path
+  git-kudos include/menu/ file.txt data/*.js  Kudos for specified files and folders
+  git-kudos out[A-C].csv                      Kudos for outA.csv outB.csv outC.csv
+  git-kudos alg[15].rs                        Kudos for alg1.rs alg5.rs
+  git-kudos **.{h,c,hpp,cpp}                  Kudos for by C/C++ files
+  git-kudos src/**/test.js                    Kudos for text.js files inside src/
+  git-kudos src/**/test/*.cpp                 Kudos for .cpp files inside test folders
+  git-kudos src/**Renderer*.*                 Kudos for files that contain "Renderer"
+  git-kudos src/**.{h,cpp} -x src/*/test/     Kudos for C++ files and exclude test folders
+  git-kudos **.py -d                          Detailed kudos for .py files
+```
 
 ## Installation
 
