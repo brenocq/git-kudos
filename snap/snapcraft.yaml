@@ -1,0 +1,39 @@
+name: git-kudos
+base: core24
+version: '0.1.0'
+summary: Print repo contributions and give authors their well-deserved kudos! 🎉
+description: |
+  git-kudos is an open source project that lists the contributions of each author in
+  a Git repository. It shows who has written the most lines of code, making it easy
+  to recognize and celebrate everyone's hard work. Give them their well-deserved kudos!🎉.
+
+grade: stable
+confinement: strict
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+parts:
+  git-kudos:
+    plugin: dump
+    source: https://github.com/brenocq/git-kudos/releases/download/v0.1.0/git-kudos-linux-x86_64
+    source-type: file
+    override-pull: |
+      craftctl default
+      chmod 755 $SNAPCRAFT_PART_SRC/git-kudos-linux-x86_64
+    organize:
+      git-kudos-linux-x86_64: usr/bin/git-kudos
+
+  completion:
+    plugin: dump
+    source: https://github.com/brenocq/git-kudos/archive/refs/tags/v0.1.0.tar.gz
+    source-type: tar
+    organize:
+      completion/git-kudos.sh: usr/share/bash-completion/completions/git-kudos
+      completion/git-kudos.fish: usr/share/fish/completions/git-kudos.fish
+      completion/git-kudos.zsh: usr/share/zsh/site-functions/_git-kudos
+
+apps:
+  git-kudos:
+    command: usr/bin/git-kudos
