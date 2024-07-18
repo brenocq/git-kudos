@@ -56,9 +56,9 @@ Examples:
 
 ## Installation
 
-<h4><img width="20" src="https://github.com/user-attachments/assets/24e01504-b9f9-47d2-b566-c0f74427768f">&nbsp; Source</h4>
+<h3><img width="20" src="https://github.com/user-attachments/assets/24e01504-b9f9-47d2-b566-c0f74427768f">&nbsp; Source</h4>
 
-```
+```bash
 cd git-kudos
 cmake -S . -B build
 cmake --build build
@@ -66,26 +66,35 @@ sudo cmake --install build
 ```
 
 &nbsp;
-<h4><img width="20" src="https://github.com/user-attachments/assets/9a87f037-99dc-482e-ad61-e0e88a3c5231">&nbsp; Linux</h4>
+<h3><img width="20" src="https://github.com/user-attachments/assets/9a87f037-99dc-482e-ad61-e0e88a3c5231">&nbsp; Linux</h3>
+
+For most Linux users, it is available through snap
+
+```bash
+TODO
+```
+
+For Arch users, it is available in the [AUR](https://aur.archlinux.org/packages/git-kudos)
+
+```bash
+yay -S git-kudos
+```
+
+&nbsp;
+<h3><img width="20" src="https://github.com/user-attachments/assets/f33cd73a-52e5-498f-869d-4812dde30f9b">&nbsp; MacOS</h3>
 
 ```bash
 TODO
 ```
 
 &nbsp;
-<h4><img width="20" src="https://github.com/user-attachments/assets/f33cd73a-52e5-498f-869d-4812dde30f9b">&nbsp; MacOS</h4>
+<h3><img width="20" src="https://github.com/user-attachments/assets/1dc3e2ed-91f3-4db8-9c1d-906f81561ce5">&nbsp; Windows</h3>
 
 ```bash
 TODO
 ```
 
 &nbsp;
-<h4><img width="20" src="https://github.com/user-attachments/assets/1dc3e2ed-91f3-4db8-9c1d-906f81561ce5">&nbsp; Windows</h4>
-
-```bash
-TODO
-```
-
 ## Contributing
 All contributions are welcome! Whether you're reporting [issues](https://github.com/brenocq/git-kudos/issues/new), suggesting new features, or submitting [pull requests](https://github.com/brenocq/git-kudos/compare), your help is greatly appreciated. 🫶
 
