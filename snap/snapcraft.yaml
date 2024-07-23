@@ -9,6 +9,7 @@ description: |
 
 grade: stable
 confinement: strict
+
 platforms:
   amd64:
     build-on: [amd64]
@@ -24,6 +25,11 @@ parts:
       chmod 755 $SNAPCRAFT_PART_SRC/git-kudos-linux-x86_64
     organize:
       git-kudos-linux-x86_64: usr/bin/git-kudos
+
+  git:
+    plugin: nil
+    stage-packages:
+      - git
 
   completion:
     plugin: dump
