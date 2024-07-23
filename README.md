@@ -23,7 +23,7 @@
   </a>
 </div>
 
-`git-kudos` is an open source project that lists the contributions of each author in a Git repository. It shows who has written the most lines of code, making it easy to recognize and celebrate everyone's hard work. Give them their well-deserved kudos!🎉
+`git-kudos` is an open source project that lists the contributions of each author in a Git repository. It shows who has written the most lines of code, making it easy to recognize and celebrate everyone's hard work. Give them their well-deserved kudos! 🎉
 
 ## Usage
 
@@ -68,13 +68,13 @@ sudo cmake --install build
 &nbsp;
 <h3><img width="20" src="https://github.com/user-attachments/assets/9a87f037-99dc-482e-ad61-e0e88a3c5231">&nbsp; Linux</h3>
 
-For most Linux users, it is available through snap
+For most Linux users, it is available in [snap](https://snapcraft.io/git-kudos).
 
 ```bash
 sudo snap install git-kudos
 ```
 
-For Arch users, it is available in the [AUR](https://aur.archlinux.org/packages/git-kudos)
+For Arch users, it is also available in the [AUR](https://aur.archlinux.org/packages/git-kudos).
 
 ```bash
 yay -S git-kudos
