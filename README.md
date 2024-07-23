@@ -71,7 +71,7 @@ sudo cmake --install build
 For most Linux users, it is available through snap
 
 ```bash
-sudo snap install --edge git-kudos
+sudo snap install git-kudos
 ```
 
 For Arch users, it is available in the [AUR](https://aur.archlinux.org/packages/git-kudos)
