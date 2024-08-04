@@ -40,6 +40,9 @@ Options:
   -v, --version                     Print version
   -d, --detailed                    Output detailed list of files
   -x, --exclude <paths-to-exclude>  Exclude specified paths
+  -D, --days <num-days>             Specify number of days back to include
+  -M, --months <num-months>         Specify number of months back to include
+  -Y, --year <num-years>            Specify number of years back to include
 
 Examples:
   git-kudos                                   Kudos for current path
@@ -51,6 +54,7 @@ Examples:
   git-kudos src/**/test/*.cpp                 Kudos for .cpp files inside test folders
   git-kudos src/**Renderer*.*                 Kudos for files that contain "Renderer"
   git-kudos src/**.{h,cpp} -x src/*/test/     Kudos for C++ files and exclude test folders
+  git-kudos **.c -M 3                         Kudos for lines in C files added during the past 3 months
   git-kudos **.py -d                          Detailed kudos for .py files
 ```
 
@@ -78,20 +82,6 @@ For Arch users, it is also available in the [AUR](https://aur.archlinux.org/pack
 
 ```bash
 yay -S git-kudos
-```
-
-&nbsp;
-<h3><img width="20" src="https://github.com/user-attachments/assets/f33cd73a-52e5-498f-869d-4812dde30f9b">&nbsp; MacOS</h3>
-
-```bash
-TODO
-```
-
-&nbsp;
-<h3><img width="20" src="https://github.com/user-attachments/assets/1dc3e2ed-91f3-4db8-9c1d-906f81561ce5">&nbsp; Windows</h3>
-
-```bash
-TODO
 ```
 
 &nbsp;

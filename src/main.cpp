@@ -7,7 +7,9 @@
 #include "cmakeConfig.hpp"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -52,9 +54,11 @@ constexpr size_t BAR_WIDTH = 50;
 std::string _thisAuthor;                        // Email of current git user
 std::set<std::string> _authors;                 // Author emails
 std::map<std::string, std::string> _authorName; // Map author email to each name
+time_t _currentTime;                            // Current time
 
 // Kudo options
 bool _printFileBreakdown; // Print file breakdown for each author
+time_t _minTime;          // Minimum time to process
 
 struct Kudos {
     fs::path path;
@@ -102,6 +106,9 @@ void printHelp() {
     std::cout << "  -v, --version                     Print version\n";
     std::cout << "  -d, --detailed                    Output detailed list of files\n";
     std::cout << "  -x, --exclude <paths-to-exclude>  Exclude specified paths\n";
+    std::cout << "  -D, --days <num-days>             Specify number of days back to include\n";
+    std::cout << "  -M, --months <num-months>         Specify number of months back to include\n";
+    std::cout << "  -Y, --year <num-years>            Specify number of years back to include\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
     std::cout << "  git-kudos                                   Kudos for current path\n";
@@ -113,6 +120,7 @@ void printHelp() {
     std::cout << "  git-kudos src/**/test/*.cpp                 Kudos for .cpp files inside test folders\n";
     std::cout << "  git-kudos src/**Renderer*.*                 Kudos for files that contain \"Renderer\"\n";
     std::cout << "  git-kudos src/**.{h,cpp} -x src/*/test/     Kudos for C++ files and exclude test folders\n";
+    std::cout << "  git-kudos **.c -M 3                         Kudos for lines in C files added during the past 3 months\n";
     std::cout << "  git-kudos **.py -d                          Detailed kudos for .py files\n";
 }
 
@@ -152,26 +160,35 @@ Kudos calcKudos(fs::path path) {
     // Process git blame to update kudos
     std::istringstream stream(output);
     std::string line;
-    std::string email;
     std::string authorName = "";
+    std::string authorEmail = "";
+    time_t authorTime = 0;
     while (std::getline(stream, line)) {
-        // Get author name for next commit
+        // Get author time for next line
+        std::string timePrefix = "author-time ";
+        if (line.find(timePrefix) == 0)
+            authorTime = std::stol(line.substr(timePrefix.size()));
+        // Get author name for next line
         if (line.find("author ") == 0)
             authorName = line.substr(6);
-        // Get author email for next commit
+        // Get author email for next line
         if (line.find("author-mail <") == 0) {
             std::regex emailRegex("<(.*?)>");
             std::smatch match;
-            if (std::regex_search(line, match, emailRegex)) {
-                email = processEmail(match[1].str());
-                kudos.authorFileLines[email][path]++;
-                kudos.authorLines[email]++;
-                kudos.totalLines++;
+            if (std::regex_search(line, match, emailRegex))
+                authorEmail = processEmail(match[1].str());
+        }
+        // Register kudos for this line
+        if (line.find("filename ") == 0) {
+            if (authorTime < _minTime)
+                continue;
+            kudos.authorFileLines[authorEmail][path]++;
+            kudos.authorLines[authorEmail]++;
+            kudos.totalLines++;
 
-                if (_authors.find(email) == _authors.end()) {
-                    _authors.insert(email);
-                    _authorName[email] = authorName;
-                }
+            if (_authors.find(authorEmail) == _authors.end()) {
+                _authors.insert(authorEmail);
+                _authorName[authorEmail] = authorName;
             }
         }
     }
@@ -261,6 +278,10 @@ int main(int argc, char* argv[]) {
     bool isDetailedPrint = false;
     bool hasExcludeFlag = false;
 
+    // Calculate current time
+    _currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    _minTime = 0;
+
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if (arg.empty())
@@ -275,6 +296,30 @@ int main(int argc, char* argv[]) {
             isDetailedPrint = true;
         } else if (arg.find("--exclude") != std::string::npos || arg.find("-x") != std::string::npos) {
             hasExcludeFlag = true;
+        } else if (arg == "--days" || arg == "-D") {
+            if (i + 1 < argc && std::isdigit(argv[i + 1][0])) {
+                time_t days = std::stol(argv[++i]);
+                _minTime = _currentTime - days * 24 * 60 * 60;
+            } else {
+                std::cerr << "Error: --days requires a number" << std::endl;
+                return 1;
+            }
+        } else if (arg == "--months" || arg == "-M") {
+            if (i + 1 < argc && std::isdigit(argv[i + 1][0])) {
+                time_t months = std::stol(argv[++i]);
+                _minTime = _currentTime - months * 30 * 24 * 60 * 60;
+            } else {
+                std::cerr << "Error: --months requires a number" << std::endl;
+                return 1;
+            }
+        } else if (arg == "--years" || arg == "-Y") {
+            if (i + 1 < argc && std::isdigit(argv[i + 1][0])) {
+                time_t years = std::stol(argv[++i]);
+                _minTime = _currentTime - years * 365 * 24 * 60 * 60;
+            } else {
+                std::cerr << "Error: --years requires a number" << std::endl;
+                return 1;
+            }
         } else {
             if (arg[0] == '-') {
                 // Warn unknown option
