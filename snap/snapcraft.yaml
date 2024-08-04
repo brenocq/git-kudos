@@ -18,7 +18,7 @@ platforms:
 parts:
   git-kudos:
     plugin: dump
-    source: https://github.com/brenocq/git-kudos/releases/download/v0.1.0/git-kudos-linux-x86_64
+    source: https://github.com/brenocq/git-kudos/releases/download/v1.0.0/git-kudos-linux-x86_64
     source-type: file
     override-pull: |
       craftctl default
@@ -33,7 +33,7 @@ parts:
 
   completion:
     plugin: dump
-    source: https://github.com/brenocq/git-kudos/archive/refs/tags/v0.1.0.tar.gz
+    source: https://github.com/brenocq/git-kudos/archive/refs/tags/v1.0.0.tar.gz
     source-type: tar
     organize:
       completion/git-kudos.sh: usr/share/bash-completion/completions/git-kudos
