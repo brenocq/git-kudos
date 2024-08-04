@@ -1,6 +1,6 @@
 name: git-kudos
 base: core24
-version: '0.1.0'
+version: '1.0.0'
 summary: Print repo contributions and give authors their well-deserved kudos! 🎉
 description: |
   git-kudos is an open source project that lists the contributions of each author in
